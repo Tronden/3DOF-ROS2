@@ -1,0 +1,1 @@
+ros2 launch urdf_tutorial display.launch.py model:=/workspaces/ros2_ws/gazebo_three_dof/urdf/three_dof.urdf
