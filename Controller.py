@@ -9,22 +9,18 @@ import numpy as np
 import time
 from tkinter import *
 import csv
-import sys
-import os
 
 # -------------------------------------------Both programs(Servo Control and Ball Tracker) in one -------------------------------------------
 #variables
-movement =0
-# Constants
-
-# Adjust the import path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
-
-from Controller.Pid import pid_controller  # Import the PID controller
 list_of_prev_poses = []
 list_of_prev_desired_pos = []
+
+def pid_controller(ball_pos, prev_error, integral, dt=0.01, Kp=0.1, Ki=0.01, Kd=0.05):
+    error = -ball_pos
+    derivative = (error - prev_error) / dt
+    integral += error * dt
+    output = Kp * error + Ki * integral + Kd * derivative
+    return output, error, integral
 
 def draw_ball_trajectory(img, current_pos, prev_pos):
     if prev_pos is not None:

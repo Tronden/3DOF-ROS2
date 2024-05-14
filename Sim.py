@@ -1,17 +1,14 @@
-# simulation/sim.py
-import sys
-import os
 import glfw
 import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import numpy as np
 
-# Adjust the import path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
-
-from Controller.Pid import pid_controller  # Import the PID controller
+def pid_controller(ball_pos, prev_error, integral, dt=0.01, Kp=0.1, Ki=0.01, Kd=0.05):
+    error = -ball_pos
+    derivative = (error - prev_error) / dt
+    integral += error * dt
+    output = Kp * error + Ki * integral + Kd * derivative
+    return output, error, integral
 
 def initialize_glfw():
     if not glfw.init():
