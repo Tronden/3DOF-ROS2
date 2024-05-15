@@ -18,16 +18,43 @@ def pid_controller(ball_pos, prev_error, integral, dt=0.01, Kp=0.1, Ki=0.01, Kd=
     output = Kp * error + Ki * integral + Kd * derivative
     return output, error, integral
 
-# Calculate pitch and roll based on ball position
+# Calculate pitch and roll based on ball position using transformation matrices
 def calculate_pitch_roll(ball_x, ball_y, width, height):
     # Normalize ball positions
     normalized_x = (ball_x - width / 2) / (width / 2)
     normalized_y = (ball_y - height / 2) / (height / 2)
     
-    # Example conversion to pitch and roll
-    pitch = normalized_y * 30  # Assuming maximum pitch angle is 30 degrees
-    roll = normalized_x * 30   # Assuming maximum roll angle is 30 degrees
+    # Define the rotation matrices for pitch and roll
+    pitch_rad = np.deg2rad(normalized_y * 30)  # Assuming maximum pitch angle is 30 degrees
+    roll_rad = np.deg2rad(normalized_x * 30)   # Assuming maximum roll angle is 30 degrees
+
+    # Rotation matrix for pitch
+    T_pitch = np.array([
+        [1, 0, 0],
+        [0, np.cos(pitch_rad), -np.sin(pitch_rad)],
+        [0, np.sin(pitch_rad), np.cos(pitch_rad)]
+    ])
     
+    # Rotation matrix for roll
+    T_roll = np.array([
+        [np.cos(roll_rad), 0, np.sin(roll_rad)],
+        [0, 1, 0],
+        [-np.sin(roll_rad), 0, np.cos(roll_rad)]
+    ])
+    
+    # Total transformation matrix
+    T = np.dot(T_roll, T_pitch)
+
+    # Example ball position in the camera frame (assuming z = 0)
+    ball_pos_camera = np.array([ball_x, ball_y, 0])
+    
+    # Transform ball position to platform frame
+    ball_pos_platform = np.dot(T, ball_pos_camera)
+
+    # Extract pitch and roll from the transformation matrix
+    pitch = np.rad2deg(np.arcsin(T[1, 2]))
+    roll = np.rad2deg(np.arcsin(-T[0, 2]))
+
     return pitch, roll
 
 # ROS 2 node for controlling the 3-DOF platform
@@ -69,7 +96,7 @@ class ThreeDOFController(Node):
             angle_x, self.prev_error_x, self.integral_x = pid_controller(x, self.prev_error_x, self.integral_x)
             angle_y, self.prev_error_y, self.integral_y = pid_controller(y, self.prev_error_y, self.integral_y)
             
-            # Calculate pitch and roll
+            # Calculate pitch and roll using transformation matrices
             pitch, roll = calculate_pitch_roll(x, y, img.shape[1], img.shape[0])
             
             # Publish pitch and roll
