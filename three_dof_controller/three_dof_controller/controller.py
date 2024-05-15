@@ -1,11 +1,8 @@
 import os
-import multiprocessing as mp
-from multiprocessing import Queue
 import cvzone
 from cvzone.ColorModule import ColorFinder
 import cv2
 import numpy as np
-import time
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
@@ -57,6 +54,24 @@ def calculate_pitch_roll(ball_x, ball_y, width, height):
 
     return pitch, roll
 
+# Convert pitch and roll to servo angles
+def calculate_servo_angles(pitch, roll):
+    # Convert pitch and roll angles to radians
+    pitch_rad = np.deg2rad(pitch)
+    roll_rad = np.deg2rad(roll)
+
+    # Calculate the angle for each servo
+    servo1_angle = pitch_rad * np.cos(np.deg2rad(0)) + roll_rad * np.sin(np.deg2rad(0))
+    servo2_angle = pitch_rad * np.cos(np.deg2rad(120)) + roll_rad * np.sin(np.deg2rad(120))
+    servo3_angle = pitch_rad * np.cos(np.deg2rad(240)) + roll_rad * np.sin(np.deg2rad(240))
+
+    # Convert the angles back to degrees
+    servo1_angle = np.rad2deg(servo1_angle)
+    servo2_angle = np.rad2deg(servo2_angle)
+    servo3_angle = np.rad2deg(servo3_angle)
+
+    return servo1_angle, servo2_angle, servo3_angle
+
 # ROS 2 node for controlling the 3-DOF platform
 class ThreeDOFController(Node):
     def __init__(self):
@@ -65,6 +80,9 @@ class ThreeDOFController(Node):
         self.publisher_roll = self.create_publisher(Float64, 'roll', 1)
         self.publisher_ballx = self.create_publisher(Float64, 'ballx', 1)
         self.publisher_bally = self.create_publisher(Float64, 'bally', 1)
+        self.publisher_servo1 = self.create_publisher(Float64, 'servo1_angle', 1)
+        self.publisher_servo2 = self.create_publisher(Float64, 'servo2_angle', 1)
+        self.publisher_servo3 = self.create_publisher(Float64, 'servo3_angle', 1)
         self.timer = self.create_timer(0.1, self.control_loop)
 
         camera_device = '/dev/video4'
@@ -110,6 +128,14 @@ class ThreeDOFController(Node):
             # Publish ballx and bally
             self.publisher_ballx.publish(Float64(data=ballx))
             self.publisher_bally.publish(Float64(data=bally))
+
+            # Calculate servo angles
+            servo1_angle, servo2_angle, servo3_angle = calculate_servo_angles(pitch, roll)
+
+            # Publish servo angles
+            self.publisher_servo1.publish(Float64(data=servo1_angle))
+            self.publisher_servo2.publish(Float64(data=servo2_angle))
+            self.publisher_servo3.publish(Float64(data=servo3_angle))
 
         cv2.imshow('Image', img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
