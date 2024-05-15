@@ -1,1 +1,16 @@
+Commands:
+
+After every change or new terminal:
+cd /workspaces/ros2_ws/
+colcon build
+source install/setup.bash
+
+Run 3D Model:
 ros2 launch urdf_tutorial display.launch.py model:=/home/trond/Documents/GitHub/3DOF-ROS2/three_dof.urdf
+
+Run program and 3D model:
+ros2 launch three_dof_controller three_dof_controller.launch.py
+
+Listen to Topics:
+ros2 topic list
+ros2 topic echo <topic>

@@ -1,3 +1,4 @@
+import os
 import multiprocessing as mp
 from multiprocessing import Queue
 import cvzone
@@ -17,19 +18,34 @@ def pid_controller(ball_pos, prev_error, integral, dt=0.01, Kp=0.1, Ki=0.01, Kd=
     output = Kp * error + Ki * integral + Kd * derivative
     return output, error, integral
 
+# Calculate pitch and roll based on ball position
+def calculate_pitch_roll(ball_x, ball_y, width, height):
+    # Normalize ball positions
+    normalized_x = (ball_x - width / 2) / (width / 2)
+    normalized_y = (ball_y - height / 2) / (height / 2)
+    
+    # Example conversion to pitch and roll
+    pitch = normalized_y * 30  # Assuming maximum pitch angle is 30 degrees
+    roll = normalized_x * 30   # Assuming maximum roll angle is 30 degrees
+    
+    return pitch, roll
+
 # ROS 2 node for controlling the 3-DOF platform
 class ThreeDOFController(Node):
     def __init__(self):
         super().__init__('three_dof_controller')
-        self.publisher_joint1 = self.create_publisher(Float64, '/joint1_position_controller/command', 10)
-        self.publisher_joint2 = self.create_publisher(Float64, '/joint2_position_controller/command', 10)
-        self.publisher_joint3 = self.create_publisher(Float64, '/joint3_position_controller/command', 10)
+        self.publisher_pitch = self.create_publisher(Float64, 'pitch', 1)
+        self.publisher_roll = self.create_publisher(Float64, 'roll', 1)
+        self.publisher_ballx = self.create_publisher(Float64, 'ballx', 1)
+        self.publisher_bally = self.create_publisher(Float64, 'bally', 1)
         self.timer = self.create_timer(0.1, self.control_loop)
 
-        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        camera_device = '/dev/video4'
+        self.cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
         self.cap.set(3, 1020)
         self.cap.set(4, 720)
         self.myColorFinder = ColorFinder(False)
+        self.color_hsv_values = {'hmin': 0, 'smin': 0, 'vmin': 0, 'hmax': 179, 'smax': 255, 'vmax': 255}  # Set initial values, can be adjusted as needed
         self.prev_error_x = 0
         self.prev_error_y = 0
         self.integral_x = 0
@@ -41,7 +57,7 @@ class ThreeDOFController(Node):
             self.get_logger().error('Failed to read from camera')
             return
 
-        imgColor, mask = self.myColorFinder.update(img, [0, 0, 0])  # Adjust color range as needed
+        imgColor, mask = self.myColorFinder.update(img, self.color_hsv_values)  # Use the color_hsv_values dictionary
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             largest_contour = max(contours, key=cv2.contourArea)
@@ -53,12 +69,20 @@ class ThreeDOFController(Node):
             angle_x, self.prev_error_x, self.integral_x = pid_controller(x, self.prev_error_x, self.integral_x)
             angle_y, self.prev_error_y, self.integral_y = pid_controller(y, self.prev_error_y, self.integral_y)
             
-            # Assuming the third angle can be derived from x and y
-            angle_z = 0  
+            # Calculate pitch and roll
+            pitch, roll = calculate_pitch_roll(x, y, img.shape[1], img.shape[0])
+            
+            # Publish pitch and roll
+            self.publisher_pitch.publish(Float64(data=pitch))
+            self.publisher_roll.publish(Float64(data=roll))
 
-            self.publisher_joint1.publish(Float64(data=angle_x))
-            self.publisher_joint2.publish(Float64(data=angle_y))
-            self.publisher_joint3.publish(Float64(data=angle_z))
+            # Assuming ballx and bally can be derived from x and y
+            ballx = angle_x  
+            bally = angle_y  
+
+            # Publish ballx and bally
+            self.publisher_ballx.publish(Float64(data=ballx))
+            self.publisher_bally.publish(Float64(data=bally))
 
         cv2.imshow('Image', img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
