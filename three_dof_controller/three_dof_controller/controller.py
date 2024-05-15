@@ -90,7 +90,7 @@ class ThreeDOFController(Node):
         self.cap.set(3, 1020)
         self.cap.set(4, 720)
         self.myColorFinder = ColorFinder(False)
-        self.color_hsv_values = {'hmin': 0, 'smin': 0, 'vmin': 0, 'hmax': 179, 'smax': 255, 'vmax': 255}  # Set initial values, can be adjusted as needed
+        self.color_hsv_values = {'hmin': 0, 'smin': 124, 'vmin': 216, 'hmax': 39, 'smax': 255, 'vmax': 255}  # Set initial values, can be adjusted as needed
         self.prev_error_x = 0
         self.prev_error_y = 0
         self.integral_x = 0
